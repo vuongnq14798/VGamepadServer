@@ -34,5 +34,5 @@ private:
 
 	socklen_t sin_size;
 
-	//CController*__controller;
+	//CController*controller;
 };

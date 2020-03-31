@@ -7,7 +7,7 @@ public:
 	CSocketController(void);
 	~CSocketController(void);
 
-	static CSocketController* GetInstance();
+	static CSocketController* getInstance();
 
 	void StartSocketController(int port);
 	void StopSocketController();
@@ -15,6 +15,6 @@ public:
 	BOOL StartMainControl(int port);
 	void StopMainControl();
 private:
-	//TCPSocketBase* __tcpMainServerSocket;
-	BOOL			__tcpMainServerConnected;
+	//TCPSocketBase* tcpServerSocket;
+	BOOL			tcpServerConnected;
 };

@@ -48,29 +48,29 @@ void CControlServer::OnLeftMouseUp()
 void CControlServer::keydown(char* buf, int bufLen)
 {
 	INPUT* input = new INPUT[bufLen - 1];
-	for (int i = 1; i < bufLen; i++) {
+	for (int i = 0; i < bufLen - 1; i++) {
 		input[i].type = INPUT_KEYBOARD;
 		input[i].ki.wScan = 0;
 		input[i].ki.time = 0;
 		input[i].ki.dwExtraInfo = 0;
-		input[i].ki.wVk = buf[i];
+		input[i].ki.wVk = buf[i + 1];
 		input[i].ki.dwFlags = 0;
 	}
-	SendInput(1, input, sizeof(INPUT));
+	SendInput(bufLen - 1, input, sizeof(INPUT));
 	SAFE_DELETE_ARRAY(input);
 }
 void CControlServer::keyup(char* buf, int bufLen)
 {
 	INPUT* input = new INPUT[bufLen - 1];
-	for (int i = 1; i < bufLen; i++) {
+	for (int i = 0; i < bufLen - 1; i++) {
 		input[i].type = INPUT_KEYBOARD;
 		input[i].ki.wScan = 0;
 		input[i].ki.time = 0;
 		input[i].ki.dwExtraInfo = 0;
-		input[i].ki.wVk = buf[i];
+		input[i].ki.wVk = buf[i + 1];
 		input[i].ki.dwFlags = KEYEVENTF_KEYUP;
 	}
-	SendInput(1, input, sizeof(INPUT));
+	SendInput(bufLen - 1, input, sizeof(INPUT));
 	SAFE_DELETE_ARRAY(input);
 }
 
