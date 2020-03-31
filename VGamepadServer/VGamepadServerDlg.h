@@ -34,7 +34,7 @@ protected:
 	DECLARE_MESSAGE_MAP()
 public:
 	int m_port;
-	CController _controller;
+	CController controller;
 	afx_msg void OnBnClickedStart();
 	afx_msg void OnBnClickedStop();
 	

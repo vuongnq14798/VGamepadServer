@@ -11,6 +11,7 @@
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
+#include "RecordScreen.h"
 
 
 // CAboutDlg dialog used for App About
@@ -161,11 +162,13 @@ HCURSOR CVGamepadServerDlg::OnQueryDragIcon()
 
 void CVGamepadServerDlg::OnBnClickedStart()
 {
-	_controller.StartProgram(m_port);
+	CRecordScreen* pRecordScreen = new CRecordScreen();
+	pRecordScreen->startRecord();
+	controller.StartProgram(m_port);
 }
 
 
 void CVGamepadServerDlg::OnBnClickedStop()
 {
-	_controller.StopProgram();
+	controller.StopProgram();
 }
