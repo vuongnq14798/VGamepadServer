@@ -2,24 +2,24 @@
 #include "defines.h"
 #include "SocketController.h"
 
-CSocketController* __pSocketController = NULL;
-TCPSocketBase* __tcpMainServerSocket = NULL;
+CSocketController* pSocketController = NULL;
+TCPSocketBase* tcpServerSocket = NULL;
 CSocketController::CSocketController(void)
 {
-	__tcpMainServerSocket = new TCPSocketBase();
-	__tcpMainServerConnected = FALSE;
+	tcpServerSocket = new TCPSocketBase();
+	tcpServerConnected = FALSE;
 }
 
 CSocketController::~CSocketController(void)
 {
-	SAFE_DELETE(__tcpMainServerSocket);
+	SAFE_DELETE(tcpServerSocket);
 }
 
-CSocketController* CSocketController::GetInstance()
+CSocketController* CSocketController::getInstance()
 {
-	if (__pSocketController == NULL)
-		__pSocketController = new CSocketController();
-	return __pSocketController;
+	if (pSocketController == NULL)
+		pSocketController = new CSocketController();
+	return pSocketController;
 }
 
 void CSocketController::StartSocketController(int port)
@@ -34,12 +34,12 @@ void CSocketController::StopSocketController()
 
 BOOL CSocketController::StartMainControl(int port)
 {
-	int err = __tcpMainServerSocket->connectSocket(port);
+	int err = tcpServerSocket->connectSocket(port);
 	return err;
 }
 
 void CSocketController::StopMainControl()
 {
-	if (__tcpMainServerSocket)
-		__tcpMainServerSocket->closeSocket();
+	if (tcpServerSocket)
+		tcpServerSocket->closeSocket();
 }

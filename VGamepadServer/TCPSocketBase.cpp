@@ -6,7 +6,7 @@
 #define BACKLOG	10 
 #define MAX_PACKET_SIZE 4096
 
-CController* __controller = NULL;
+CController* controller = NULL;
 
 TCPSocketBase::TCPSocketBase()
 {
@@ -23,7 +23,7 @@ TCPSocketBase::TCPSocketBase()
 	_port = NULL;
 	sin_size = NULL;
 
-	__controller = new CController();
+	controller = new CController();
 }
 
 TCPSocketBase::~TCPSocketBase()
@@ -93,33 +93,6 @@ UINT TCPSocketBase::connectThreadMain(void* arg)
 int TCPSocketBase::connectInnerFunc()
 {
 	_sockFd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (_sockFd < 0)
-	{
-		return ERROR_SOCKET_CANT_OPEN;
-	}
-	int opt = 1;
-
-	if (setsockopt(_sockFd, SOL_SOCKET, (SO_REUSEADDR), (char*)&opt, sizeof(int)) == -1)
-	{
-		return ERROR_SOCKET_CANT_SET_OPT;
-	}
-
-	int len, trysize;
-	len = sizeof(int);
-
-	trysize = 512 * 1024;
-
-	int err = setsockopt(_sockFd, SOL_SOCKET, SO_SNDBUF, (char*)&trysize, sizeof(int));
-	if (err < 0)
-	{
-
-	}
-
-	err = setsockopt(_sockFd, SOL_SOCKET, SO_RCVBUF, (char*)&trysize, sizeof(int));
-	if (err < 0)
-	{
-
-	}
 	return connectAsServer();
 }
 
@@ -159,7 +132,7 @@ int TCPSocketBase::receiveData(char* buf)
 	}
 	else if (numbytes > 0)
 	{
-		__controller->OnReceiveData(buf[0],buf, _buffLen);
+		controller->OnReceiveData(buf[0],buf, _buffLen);
 		return OK;
 	}
 	else
