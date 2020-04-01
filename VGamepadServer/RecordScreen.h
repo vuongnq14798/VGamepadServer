@@ -16,7 +16,7 @@ public:
 	int encodeImage();
 
 private:
-	HANDLE isCapturing, isEncoding;
+	HANDLE capturingLoop, encodingLoop;
 	BOOL isRecording;
 	CBuffer *pBufferRGB, *pBufferH264;
 };

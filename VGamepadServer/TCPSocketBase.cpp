@@ -111,7 +111,7 @@ void TCPSocketBase::receiveThreadLoop()
 	while (_isReceiveThreadRunning)
 	{
 		res = receiveData(buf);
-		if (res < 0) break;
+		break;
 	}
 	SAFE_DELETE_ARRAY(buf);
 	_isReceiveThreadRunning = false;
@@ -139,6 +139,7 @@ int TCPSocketBase::receiveData(char* buf)
 	{
 		return ERROR_SOCKET_CLOSED;
 	}
+
 	return OK;
 }
 
