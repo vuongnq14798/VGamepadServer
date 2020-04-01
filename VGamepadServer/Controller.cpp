@@ -26,7 +26,7 @@ void CController::StopProgram()
 void CController::OnReceiveData(char type, char* buf, int bufLen)
 {
 	switch (type) {
-	case KEYBOARD: {
+	case 'a': {
 		controlServer.pressKey(buf, bufLen);
 	}
 	case MOUSE: {

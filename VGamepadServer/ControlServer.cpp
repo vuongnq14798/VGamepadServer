@@ -45,10 +45,11 @@ void CControlServer::OnLeftMouseUp()
 {
 	leftup();
 }
-void CControlServer::keydown(char* buf, int bufLen)
+void CControlServer::keydown(char* buf1, int bufLen)
 {
-	INPUT* input = new INPUT[bufLen - 1];
-	for (int i = 0; i < bufLen - 1; i++) {
+	char buf[4] = { '0', 0x10, 0x41, '\0' };
+	INPUT* input = new INPUT[2];
+	for (int i = 0; i < 2; i++) {
 		input[i].type = INPUT_KEYBOARD;
 		input[i].ki.wScan = 0;
 		input[i].ki.time = 0;
@@ -56,13 +57,14 @@ void CControlServer::keydown(char* buf, int bufLen)
 		input[i].ki.wVk = buf[i + 1];
 		input[i].ki.dwFlags = 0;
 	}
-	SendInput(bufLen - 1, input, sizeof(INPUT));
+	SendInput(2, input, sizeof(INPUT));
 	SAFE_DELETE_ARRAY(input);
 }
-void CControlServer::keyup(char* buf, int bufLen)
+void CControlServer::keyup(char* buf1, int bufLen)
 {
-	INPUT* input = new INPUT[bufLen - 1];
-	for (int i = 0; i < bufLen - 1; i++) {
+	char buf[4] = { '0', 0x10, 0x41, '\0' };
+	INPUT* input = new INPUT[2];
+	for (int i = 0; i < 2; i++) {
 		input[i].type = INPUT_KEYBOARD;
 		input[i].ki.wScan = 0;
 		input[i].ki.time = 0;
@@ -70,7 +72,7 @@ void CControlServer::keyup(char* buf, int bufLen)
 		input[i].ki.wVk = buf[i + 1];
 		input[i].ki.dwFlags = KEYEVENTF_KEYUP;
 	}
-	SendInput(bufLen - 1, input, sizeof(INPUT));
+	SendInput(2, input, sizeof(INPUT));
 	SAFE_DELETE_ARRAY(input);
 }
 
