@@ -16,8 +16,8 @@ CRecordScreen* pRecordScreen = NULL;
 CRecordScreen::CRecordScreen()
 {
 	//dosomethings
-	isCapturing = NULL;
-	isEncoding = NULL;
+	capturingLoop = NULL;
+	encodingLoop = NULL;
 
 	isRecording = FALSE;
 
@@ -48,10 +48,10 @@ BOOL CRecordScreen::startRecord()
 {
 	isRecording = TRUE;
 
-	isEncoding = AfxBeginThread(encodingThread, (void*)this);
-	isCapturing = AfxBeginThread(capturingThread, (void*)this);
+	encodingLoop = AfxBeginThread(encodingThread, (void*)this);
+	capturingLoop = AfxBeginThread(capturingThread, (void*)this);
 
-	if (isCapturing == NULL || isEncoding == NULL)
+	if (capturingLoop == NULL || encodingLoop == NULL)
 	{
 		stopRecord();
 		return FALSE;
@@ -62,17 +62,17 @@ BOOL CRecordScreen::startRecord()
 void CRecordScreen::stopRecord()
 {
 	isRecording = FALSE;
-	if (isCapturing != NULL)
+	if (capturingLoop != NULL)
 	{
-		if (WaitForSingleObject(isCapturing, 1000) != 0)
-			TerminateThread(isCapturing, 0);
-		isCapturing = NULL;
+		if (WaitForSingleObject(capturingLoop, 1000) != 0)
+			TerminateThread(capturingLoop, 0);
+		capturingLoop = NULL;
 	}
-	if (isEncoding != NULL)
+	if (encodingLoop != NULL)
 	{
-		if (WaitForSingleObject(isEncoding, 1000) != 0)
-			TerminateThread(isEncoding, 0);
-		isEncoding = NULL;
+		if (WaitForSingleObject(encodingLoop, 1000) != 0)
+			TerminateThread(encodingLoop, 0);
+		encodingLoop = NULL;
 	}
 
 	pBufferRGB->clearBuffer();
@@ -156,5 +156,5 @@ void CRecordScreen::capture()
 
 int CRecordScreen::encodeImage()
 {
-	return 0;
+	return 1;
 }
