@@ -10,7 +10,7 @@ public:
 	void StartProgram(int port);
 	void StopProgram();
 
-	void OnReceiveData(char type, char* buf, int buffLen);
+	void OnReceiveData(char* buf, int indexClient);
 private:
-	CControlServer controlServer;
+	CControlServer *controlServer;
 };
