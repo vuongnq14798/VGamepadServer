@@ -10,15 +10,15 @@ CController* controller = NULL;
 
 TCPSocketBase::TCPSocketBase()
 {
-	_isSocketConnected = false;
-	_isSocketCreated = false;
+	/*_isSocketConnected = false;
+	isSocketCreated = false;
 	_isReceiveThreadRunning = false;
-	_isConnectThreadRunning = false;
+	_isConnectThreadRunning = false;*/
 
-	_receiveLoop = NULL;
+	receiveLoop = NULL;
 	_connectLoop = NULL;
 	_sockFd = NULL;
-	_clientFd = NULL;
+	clientFd = NULL;
 	_buffLen = NULL;
 	_port = NULL;
 	sin_size = NULL;
@@ -35,14 +35,10 @@ int TCPSocketBase::connectSocket(int port)
 	int err = 0;
 	WSADATA wsaData;
 	err = WSAStartup(MAKEWORD(2, 2), &wsaData);
-	if (err != 0)
+	
+	if (isSocketCreated == false)
 	{
-		return ERROR_UNKNOWN;
-	}
-
-	if (_isSocketCreated == false)
-	{
-		_isSocketCreated = true;
+		isSocketCreated = true;
 		_port = port;
 		_connectLoop = AfxBeginThread(connectThreadMain, (void*)this);
 	}
@@ -53,29 +49,32 @@ int TCPSocketBase::connectSocket(int port)
 
 }
 
-int TCPSocketBase::closeSocket()
+int TCPSocketBase::closeSocket(int socket)
 {
 
-	_isSocketCreated = false;
-	shutdown(_clientFd, SD_BOTH);
-	closesocket(_clientFd);
-	
-	_isSocketConnected = false;
 
+	shutdown(socket, SD_BOTH);
+	closesocket(socket);
+	connectedClient[socket] = false;
 	if (_isReceiveThreadRunning)
 	{
 		_isReceiveThreadRunning = false;
-		DWORD dwRet = WaitForSingleObject(_receiveLoop->m_hThread, _port);
+		DWORD dwRet = WaitForSingleObject(receiveLoop->m_hThread, 10);
 		if (dwRet != WAIT_OBJECT_0 && dwRet != WAIT_FAILED) {
-			TerminateThread(_receiveLoop->m_hThread, 0);
+			TerminateThread(receiveLoop->m_hThread, 0);
 		}
 	}
 	return OK;
 }
 
+int TCPSocketBase::closeSocket()
+{
+	return 0;
+}
+
 int TCPSocketBase::sendSocket(char* buf, int len)
 {
-	return send(_clientFd, (const char*)buf, len, 0);
+	return send(clientFd, (const char*)buf, len, 0);
 }
 
 UINT TCPSocketBase::connectThreadMain(void* arg)
@@ -85,7 +84,7 @@ UINT TCPSocketBase::connectThreadMain(void* arg)
 
 	if (ret != OK)
 	{
-		h->_isSocketCreated = false;
+		h->isSocketCreated = false;
 	}
 	return 0;
 }
@@ -93,6 +92,21 @@ UINT TCPSocketBase::connectThreadMain(void* arg)
 int TCPSocketBase::connectInnerFunc()
 {
 	_sockFd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+	int opt = 1;
+
+
+	setsockopt(_sockFd, SOL_SOCKET, (SO_REUSEADDR), (char*)&opt, sizeof(int));
+	
+
+	int len, trysize, gotsize;
+	len = sizeof(int);
+
+	trysize = 512 * 1024;
+
+	int err = setsockopt(_sockFd, SOL_SOCKET, SO_SNDBUF, (char*)&trysize, sizeof(int));
+	err = setsockopt(_sockFd, SOL_SOCKET, SO_RCVBUF, (char*)&trysize, sizeof(int));
+	
 	return connectAsServer();
 }
 
@@ -105,42 +119,49 @@ UINT TCPSocketBase::receiveThreadMain(void* arg)
 
 void TCPSocketBase::receiveThreadLoop()
 {
-	_isReceiveThreadRunning = true;
+               
 	char* buf = new char[MAX_PACKET_SIZE];
 	int res = 0;
-	while (_isReceiveThreadRunning)
+	int temp = currentClient;
+	connectedClient[temp] = true;
+	while (connectedClient[temp])
 	{
-		res = receiveData(buf);
-		if (res < 0) break;
+		UINT read_max_bytes = MAX_PACKET_SIZE;
+		if (recv(clients[temp] , buf, read_max_bytes, 0)) {
+			controller->OnReceiveData(buf, temp);
+		}
+		else
+			break;
 	}
 	SAFE_DELETE_ARRAY(buf);
-	_isReceiveThreadRunning = false;
+	connectedClient[temp] = false;
 	return;
 }
 
-int TCPSocketBase::receiveData(char* buf)
-{
-	UINT numbytes = 0;
-	UINT read_max_bytes = MAX_PACKET_SIZE;
-
-	numbytes = recv(_clientFd, buf, read_max_bytes, 0);
-	_buffLen = strlen(buf);
-	if (numbytes == -1)
-	{
-		_isSocketConnected = false;
-		return ERROR_RECV_FAILED;
-	}
-	else if (numbytes > 0)
-	{
-		controller->OnReceiveData(buf[0],buf, _buffLen);
-		return OK;
-	}
-	else
-	{
-		return ERROR_SOCKET_CLOSED;
-	}
-	return OK;
-}
+//int TCPSocketBase::receiveData(char* buf)
+//{
+//	UINT numbytes = 0;
+//	UINT read_max_bytes = MAX_PACKET_SIZE;
+//
+//	numbytes = recv(clientFd, buf, read_max_bytes, 0);
+//	_buffLen = strlen(buf);
+//	if (numbytes == -1)
+//	{
+//		_isSocketConnected = false;
+//		return -1;
+//	}
+//	else if (numbytes > 0)
+//	{
+//		controller->OnReceiveData(buf);
+//		return OK;
+//	}
+//	else
+//	{
+//		return -1;
+//	}
+//
+//	return OK;
+//}
 
 int TCPSocketBase::connectAsServer(void)
 {
@@ -161,22 +182,24 @@ int TCPSocketBase::connectAsServer(void)
 
 	sin_size = sizeof _theirAddr;
 
-	_isConnectThreadRunning = TRUE;
-
-	while (_isConnectThreadRunning)
+	while (isSocketCreated)
 	{
-		_clientFd = accept(_sockFd, (struct sockaddr*) & _theirAddr, &sin_size);
+		clientFd = accept(_sockFd, (struct sockaddr*) & _theirAddr, &sin_size);
 
-		if (_clientFd == SOCKET_ERROR)
+		if (clientFd == SOCKET_ERROR)
 		{
 			return ERROR_CANNOT_ACCEPT_CLIENT_SOCKET;
 		}
 		else
 		{
-			_receiveLoop = AfxBeginThread(receiveThreadMain, (void*)this);
-			_isSocketConnected = TRUE;
+			currentClient++;
+			currentClient = currentClient % 10;
+			if (currentClient != 0) {
+				closesocket(clients[currentClient]);
+			}
+			clients[currentClient] = clientFd;
+			receiveLoop = AfxBeginThread(receiveThreadMain, (void*)this);
 		}
 	}
-	_isConnectThreadRunning = FALSE;
 	return OK;
 }
