@@ -9,7 +9,8 @@ public:
 	~TCPSocketBase();
 
 	int		connectSocket(int port);
-	int 	closeSocket();
+	int 	closeSocket(int socket);
+	int		closeSocket();
 	int		sendSocket(char* buf, int len);
 protected:
 	static UINT connectThreadMain(void* arg);
@@ -22,17 +23,19 @@ protected:
 
 
 private:
-	int _sockFd, _clientFd;
-	CWinThread* _receiveLoop;
+	int _sockFd, clientFd;
+	CWinThread* receiveLoop;
 	CWinThread* _connectLoop;
 
 	int _port, _buffLen;
-	bool _isSocketConnected, _isSocketCreated,
+	bool _isSocketConnected, isSocketCreated,
 		_isReceiveThreadRunning, _isConnectThreadRunning;
 	struct sockaddr_storage _theirAddr;
 	struct sockaddr_in _servAddr;
-
 	socklen_t sin_size;
-
+	int clients[10];
+	int connectedClient[10];
+	int currentClient = -1;
+	
 	//CController*controller;
 };
