@@ -2,7 +2,8 @@
 #include "TCPSocketBase.h"
 #include "ErrorCodes.h"
 #include "defines.h"
-
+#include "RecordScreen.h"
+#include "Controller.h"
 #define BACKLOG	10 
 #define MAX_PACKET_SIZE 4096
 
@@ -72,11 +73,6 @@ int TCPSocketBase::closeSocket()
 	return 0;
 }
 
-int TCPSocketBase::sendSocket(char* buf, int len)
-{
-	return send(clientFd, (const char*)buf, len, 0);
-}
-
 UINT TCPSocketBase::connectThreadMain(void* arg)
 {
 	TCPSocketBase* h = reinterpret_cast<TCPSocketBase*>(arg);
@@ -107,7 +103,8 @@ int TCPSocketBase::connectInnerFunc()
 	int err = setsockopt(_sockFd, SOL_SOCKET, SO_SNDBUF, (char*)&trysize, sizeof(int));
 	err = setsockopt(_sockFd, SOL_SOCKET, SO_RCVBUF, (char*)&trysize, sizeof(int));
 	
-	return connectAsServer();
+	int ret = connectAsServer();
+	return ret;
 }
 
 UINT TCPSocketBase::receiveThreadMain(void* arg)
@@ -198,8 +195,17 @@ int TCPSocketBase::connectAsServer(void)
 				closesocket(clients[currentClient]);
 			}
 			clients[currentClient] = clientFd;
+			CController* c = new CController();
+			c->OnReceiveData("4", currentClient);
 			receiveLoop = AfxBeginThread(receiveThreadMain, (void*)this);
 		}
 	}
 	return OK;
+}
+
+int TCPSocketBase::sendSocket(int indexClient, char* buf, int len)
+{
+	int ret = -1;
+	ret = send(clients[indexClient], (const char*)buf, len, 0);
+	return ret;
 }
