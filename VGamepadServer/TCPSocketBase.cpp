@@ -2,10 +2,11 @@
 #include "TCPSocketBase.h"
 #include "ErrorCodes.h"
 #include "defines.h"
-
+#include "RecordScreen.h"
+#include "Controller.h"
+#include "string.h"
 #define BACKLOG	10 
 #define MAX_PACKET_SIZE 4096
-
 CController* controller = NULL;
 
 TCPSocketBase::TCPSocketBase()
@@ -35,7 +36,7 @@ int TCPSocketBase::connectSocket(int port)
 	int err = 0;
 	WSADATA wsaData;
 	err = WSAStartup(MAKEWORD(2, 2), &wsaData);
-	
+
 	if (isSocketCreated == false)
 	{
 		isSocketCreated = true;
@@ -72,11 +73,6 @@ int TCPSocketBase::closeSocket()
 	return 0;
 }
 
-int TCPSocketBase::sendSocket(char* buf, int len)
-{
-	return send(clientFd, (const char*)buf, len, 0);
-}
-
 UINT TCPSocketBase::connectThreadMain(void* arg)
 {
 	TCPSocketBase* h = reinterpret_cast<TCPSocketBase*>(arg);
@@ -97,7 +93,7 @@ int TCPSocketBase::connectInnerFunc()
 
 
 	setsockopt(_sockFd, SOL_SOCKET, (SO_REUSEADDR), (char*)&opt, sizeof(int));
-	
+
 
 	int len, trysize, gotsize;
 	len = sizeof(int);
@@ -106,8 +102,9 @@ int TCPSocketBase::connectInnerFunc()
 
 	int err = setsockopt(_sockFd, SOL_SOCKET, SO_SNDBUF, (char*)&trysize, sizeof(int));
 	err = setsockopt(_sockFd, SOL_SOCKET, SO_RCVBUF, (char*)&trysize, sizeof(int));
-	
-	return connectAsServer();
+
+	int ret = connectAsServer();
+	return ret;
 }
 
 UINT TCPSocketBase::receiveThreadMain(void* arg)
@@ -119,7 +116,7 @@ UINT TCPSocketBase::receiveThreadMain(void* arg)
 
 void TCPSocketBase::receiveThreadLoop()
 {
-               
+
 	char* buf = new char[MAX_PACKET_SIZE];
 	int res = 0;
 	int temp = currentClient;
@@ -127,7 +124,7 @@ void TCPSocketBase::receiveThreadLoop()
 	while (connectedClient[temp])
 	{
 		UINT read_max_bytes = MAX_PACKET_SIZE;
-		if (recv(clients[temp] , buf, read_max_bytes, 0)) {
+		if (recv(clients[temp], buf, read_max_bytes, 0)) {
 			controller->OnReceiveData(buf, temp);
 		}
 		else
@@ -137,31 +134,6 @@ void TCPSocketBase::receiveThreadLoop()
 	connectedClient[temp] = false;
 	return;
 }
-
-//int TCPSocketBase::receiveData(char* buf)
-//{
-//	UINT numbytes = 0;
-//	UINT read_max_bytes = MAX_PACKET_SIZE;
-//
-//	numbytes = recv(clientFd, buf, read_max_bytes, 0);
-//	_buffLen = strlen(buf);
-//	if (numbytes == -1)
-//	{
-//		_isSocketConnected = false;
-//		return -1;
-//	}
-//	else if (numbytes > 0)
-//	{
-//		controller->OnReceiveData(buf);
-//		return OK;
-//	}
-//	else
-//	{
-//		return -1;
-//	}
-//
-//	return OK;
-//}
 
 int TCPSocketBase::connectAsServer(void)
 {
@@ -198,8 +170,24 @@ int TCPSocketBase::connectAsServer(void)
 				closesocket(clients[currentClient]);
 			}
 			clients[currentClient] = clientFd;
+			CController* c = new CController();
+			c->OnReceiveData("4", currentClient);
 			receiveLoop = AfxBeginThread(receiveThreadMain, (void*)this);
 		}
 	}
 	return OK;
+}
+
+int TCPSocketBase::sendSocket(int indexClient, char* buf, int len)
+{
+	char* data = new char[len + 4];
+
+	data[0] = (len >> 24) & 0xFF;
+	data[1] = (len >> 16) & 0xFF;
+	data[2] = (len >> 8) & 0xFF;
+	data[3] = len & 0xFF;
+	memcpy(&data[4], buf, len);
+	int ret = -1;
+	ret = send(clients[indexClient], (const char*)data, len + 4, 0);
+	return ret;
 }

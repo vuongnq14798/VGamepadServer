@@ -3,10 +3,12 @@
 CBuffer::CBuffer(void)
 {
     isAvailable = true;
-    numBuffer = 1;
+    isSend = false;
+    numBuffering = 1;
     nBuffMax = 100;
+    reservedCount = 0;
     InitializeCriticalSection(&CS);
-
+    InitializeCriticalSection(&CSReservedCount);
 }
 
 CBuffer::~CBuffer(void)
@@ -15,17 +17,20 @@ CBuffer::~CBuffer(void)
     clearBuffer();
 
     DeleteCriticalSection(&CS);
+    DeleteCriticalSection(&CSReservedCount);
 }
 
 void CBuffer::clearBuffer()
 {
     EnterCriticalSection(&CS);
 
-    while (qBuffer.size() > 0)
+    while (!qBuffer.empty())
     {
         delete[](qBuffer.front());
         qBuffer.pop();
         qSize.pop();
+        qPts.pop();
+        DecreaseReservedCount();
     }
 
     LeaveCriticalSection(&CS);
@@ -44,16 +49,18 @@ void CBuffer::deleteMem(unsigned char*& pBuf)
     LeaveCriticalSection(&CS);
 }
 
-int CBuffer::setMem(unsigned char* pBuf, unsigned int len)
+int CBuffer::setMem(unsigned char* pBuf, unsigned int len, unsigned long pts)
 {
     if (!isAvailable)
         return -1;
 
     EnterCriticalSection(&CS);
-    UCHAR* pTemp = new unsigned char[len + 1];
+    IncreaseReservedCount();
+    unsigned char* pTemp = new unsigned char[len + 1];
     memcpy(pTemp, pBuf, len);
     qBuffer.push(pTemp);
     qSize.push(len);
+    qPts.push(pts);
 
     int ret = qBuffer.size();
 
@@ -62,20 +69,32 @@ int CBuffer::setMem(unsigned char* pBuf, unsigned int len)
     return ret;
 }
 
-int	CBuffer::getMem(unsigned char*& pBuf, unsigned int& len)
+int	CBuffer::getMem(unsigned char*& pBuf, unsigned int& len, unsigned long& pts)
 {
     if (!isAvailable)
         return -1;
     EnterCriticalSection(&CS);
     int ret = qBuffer.size();
 
-    if (ret > 0)
+    if (ret >= numBuffering) {
+        isSend = true;
+    }
+    else if (ret == 0) {
+        isSend = false;
+    }
+    if (isSend)
     {
         pBuf = qBuffer.front();
         len = qSize.front();
+        pts = qPts.front();
+
         qBuffer.pop();
         qSize.pop();
+        qPts.pop();
+        DecreaseReservedCount();
     }
+    else
+        ret = 0;
 
     LeaveCriticalSection(&CS);
     return ret;
@@ -91,7 +110,7 @@ int CBuffer::getNumBuffer()
 
 void CBuffer::SetBufferingCount(int n)
 {
-    numBuffer = n;
+    numBuffering = n;
 }
 
 void CBuffer::setNumBufferMax(int n)
@@ -102,4 +121,26 @@ void CBuffer::setNumBufferMax(int n)
 int CBuffer::getNumBufferMax()
 {
     return nBuffMax;
+}
+
+int CBuffer::GetReservedCount()
+{
+    EnterCriticalSection(&CSReservedCount);
+    int nRet = reservedCount;
+    LeaveCriticalSection(&CSReservedCount);
+    return nRet;
+}
+
+void CBuffer::IncreaseReservedCount()
+{
+    EnterCriticalSection(&CSReservedCount);
+    reservedCount++;
+    LeaveCriticalSection(&CSReservedCount);
+}
+
+void CBuffer::DecreaseReservedCount()
+{
+    EnterCriticalSection(&CSReservedCount);
+    reservedCount--;
+    LeaveCriticalSection(&CSReservedCount);
 }

@@ -11,7 +11,7 @@ public:
 	int		connectSocket(int port);
 	int 	closeSocket(int socket);
 	int		closeSocket();
-	int		sendSocket(char* buf, int len);
+	int		sendSocket(int indexClient, char* buf, int len);
 protected:
 	static UINT connectThreadMain(void* arg);
 	static UINT receiveThreadMain(void* arg);

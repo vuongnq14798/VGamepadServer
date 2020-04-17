@@ -2,7 +2,9 @@
 #include "defines.h"
 #include "RecordScreen.h"
 #include "Util.h"
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 extern "C"
 {
 #include "libavutil/opt.h"
@@ -14,6 +16,7 @@ extern "C"
 }
 
 CRecordScreen* pRecordScreen = NULL;
+const char* filename = "input.h264";
 CRecordScreen::CRecordScreen()
 {
 	//dosomethings
@@ -29,6 +32,7 @@ CRecordScreen::CRecordScreen()
 	pBufferH264 = new CBuffer();
 	pBufferH264->SetBufferingCount(1);
 	pBufferH264->setNumBufferMax(100);
+
 }
 
 CRecordScreen::~CRecordScreen(void)
@@ -110,12 +114,6 @@ void CRecordScreen::capture()
 		HGDIOBJ old_obj = SelectObject(hDC, hBitmap);
 		BOOL    bRet = BitBlt(hDC, 0, 0, width, height, hScreen, 0, 0, SRCCOPY | CAPTUREBLT);
 
-		// save bitmap to clipboard
-		OpenClipboard(NULL);
-		EmptyClipboard();
-		SetClipboardData(CF_BITMAP, hBitmap);
-		CloseClipboard();
-
 		BITMAPINFOHEADER   bi;
 		bi.biSize = sizeof(BITMAPINFOHEADER);
 		bi.biWidth = width;
@@ -140,7 +138,7 @@ void CRecordScreen::capture()
 			(BITMAPINFO*)&bi,
 			DIB_RGB_COLORS);
 
-		int ret = pBufferRGB->setMem(reinterpret_cast<BYTE*> (lpbitmap), dwBmpSize);
+		int ret = pBufferRGB->setMem(reinterpret_cast<BYTE*> (lpbitmap), dwBmpSize, 0);
 		if (ret > pBufferRGB->getNumBufferMax())
 		{
 			pBufferRGB->clearBuffer();
@@ -152,27 +150,31 @@ void CRecordScreen::capture()
 		DeleteDC(hDC);
 		ReleaseDC(NULL, hScreen);
 		DeleteObject(hBitmap);
+		Sleep(1);
 	}
 }
 
 int CRecordScreen::encodeImage()
 {
+	FILE* f;
 	AVCodecContext* pCodecCtx;
 	AVCodec* pCodec;
 	AVPacket pkt;
 	uint8_t* picture_buf;
 	AVFrame* pFrame;
 	AVFrame* pFrameRGB;
+	uint8_t endcode[] = { 0, 0, 1, 0xb7 };
 	int w_rgb, h_rgb;
 
-	int out_width = 352;
-	int out_height = 288;
-	AVInputFormat* iformat{};
-	AVOutputFormat* oformat{};
+	int out_width = 1280;
+	int out_height = 720;
 
-	av_register_input_format(iformat);
-	av_register_output_format(oformat);
+	f = fopen(filename, "wb");
+	if (!f) {
+		fprintf(stderr, "Could not open %s\n", filename);
+		exit(1);
 
+	}
 	Util::getResolution(w_rgb, h_rgb);
 
 	pCodec = avcodec_find_encoder(AV_CODEC_ID_H264);
@@ -189,16 +191,20 @@ int CRecordScreen::encodeImage()
 	pCodecCtx->height = out_height;
 	pCodecCtx->time_base.num = 1;
 	pCodecCtx->time_base.den = 25;
+	pCodecCtx->framerate.num = 25;
+	pCodecCtx->framerate.den = 1;
 	pCodecCtx->bit_rate = 2000000;
-	pCodecCtx->gop_size = 10;
+	pCodecCtx->gop_size = 12;
 	pCodecCtx->qmin = 2;
 	pCodecCtx->qmax = 10;
 
 	//Optional Param
-	pCodecCtx->max_b_frames = 3;
-	av_opt_set(pCodecCtx->priv_data, "preset", "slow", 0);
+	pCodecCtx->max_b_frames = 1;
 
-	if (avcodec_open2(pCodecCtx, pCodec, NULL) < 0) {
+	AVDictionary* param = 0;
+	av_dict_set(&param, "preset", "fast", 0);
+	av_dict_set(&param, "tune", "zerolatency", 0);
+	if (avcodec_open2(pCodecCtx, pCodec, &param) < 0) {
 		return -1;
 	}
 
@@ -217,29 +223,32 @@ int CRecordScreen::encodeImage()
 	av_new_packet(&pkt, picture_size);
 	unsigned char* picture_buf_rgb = NULL;
 	unsigned int	picture_buff_size = 0;
-	while (TRUE)
+	unsigned long	picture_pts = 0;
+	int  i = 0;
+	while (i < 100)
 	{
 		if (!isRecording	//stop recording
-			&& pBufferRGB->getNumBuffer() == 0) //no buffer in queue
+			&& pBufferRGB->GetReservedCount() == 0) //no buffer in queue
 			break;
 		do
 		{
-			if (pBufferRGB->getNumBuffer() == 0)
+			if (pBufferRGB->GetReservedCount() == 0)
 			{
 				Sleep(1);
 			}
 			else
 			{
-				int qBufferCount = pBufferRGB->getMem(picture_buf_rgb, picture_buff_size);
-				if (pBufferRGB->getNumBuffer() > 0)
+				int qBufferCount = pBufferRGB->getMem(picture_buf_rgb, picture_buff_size, picture_pts);
+				//break;
+				if (pBufferRGB->GetReservedCount() > 0)
 				{
-
 					pBufferRGB->deleteMem(picture_buf_rgb);
 				}
 				else
 				{
 					break;
 				}
+
 			}
 		} while (encodingLoop);
 		// convert rgb to yuv
@@ -249,8 +258,8 @@ int CRecordScreen::encodeImage()
 		pBufferRGB->deleteMem(picture_buf_rgb);
 
 		//Encode
-		
-		
+
+
 		int ret = avcodec_send_frame(pCodecCtx, pFrame);
 		if (ret < 0)
 		{
@@ -259,22 +268,33 @@ int CRecordScreen::encodeImage()
 		while (ret >= 0) {
 			ret = avcodec_receive_packet(pCodecCtx, &pkt);
 			if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-				int count = pBufferH264->setMem(pkt.data, pkt.size);
-				if (count > pBufferH264->getNumBufferMax())
-					pBufferH264->clearBuffer();
-				av_packet_unref(&pkt);
+				break;
 			}
 			else if (ret < 0) {
 				break;
 			}
+
+			//fwrite(pkt.data, 1, pkt.size, f);
+			int count = pBufferH264->setMem(pkt.data, pkt.size, 0);
+			if (count > pBufferH264->getNumBufferMax())
+				pBufferH264->clearBuffer();
+			av_packet_unref(&pkt);
 		}
 	}
 
 	//Clean
+	if (pCodec->id == AV_CODEC_ID_MPEG1VIDEO || pCodec->id == AV_CODEC_ID_MPEG2VIDEO)
+		fwrite(endcode, 1, sizeof(endcode), f);
+	fclose(f);
 	avcodec_close(pCodecCtx);
 	av_free(pFrame);
 	av_free(pFrameRGB);
 	av_free(picture_buf);
 
 	return 1;
+}
+
+CBuffer* CRecordScreen::getVideoBuffer()
+{
+	return pBufferH264;
 }

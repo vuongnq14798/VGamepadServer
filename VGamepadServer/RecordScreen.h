@@ -14,7 +14,7 @@ public:
 	static UINT encodingThread(void* arg);
 	void capture();	
 	int encodeImage();
-
+	CBuffer* getVideoBuffer();
 private:
 	HANDLE capturingLoop, encodingLoop;
 	BOOL isRecording;
