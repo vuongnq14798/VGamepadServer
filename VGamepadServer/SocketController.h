@@ -14,6 +14,9 @@ public:
 
 	BOOL StartMainControl(int port);
 	void StopMainControl();
+	BOOL StartVideo(int client, char* buf, int len);
+	void StopVideo(int client, char* buf, int len);
+
 private:
 	//TCPSocketBase* tcpServerSocket;
 	BOOL			tcpServerConnected;

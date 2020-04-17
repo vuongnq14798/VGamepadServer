@@ -43,3 +43,11 @@ void CSocketController::StopMainControl()
 	if (tcpServerSocket)
 		tcpServerSocket->closeSocket();
 }
+
+BOOL CSocketController::StartVideo(int indexClient, char* buf, int len) {
+	return tcpServerSocket->sendSocket(indexClient, buf, len);
+}
+
+void CSocketController::StopVideo(int client, char* buf, int len)
+{
+}

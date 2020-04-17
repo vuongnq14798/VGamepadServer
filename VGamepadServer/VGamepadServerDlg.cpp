@@ -162,8 +162,6 @@ HCURSOR CVGamepadServerDlg::OnQueryDragIcon()
 
 void CVGamepadServerDlg::OnBnClickedStart()
 {
-	CRecordScreen* pRecordScreen = new CRecordScreen();
-	pRecordScreen->startRecord();
 	controller.StartProgram(m_port);
 }
 
